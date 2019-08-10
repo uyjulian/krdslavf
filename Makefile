@@ -29,7 +29,7 @@ CFLAGS += $(ALLSRCFLAGS) -Wall -Wno-unused-value -Wno-format -I. -I.. -I../ncbin
 CFLAGS += -D_USRDLL -DMINGW_HAS_SECURE_API -DUNICODE -D_UNICODE -DNO_STRICT -fpermissive
 WINDRESFLAGS += $(ALLSRCFLAGS) --codepage=65001
 LDFLAGS += -static -static-libstdc++ -static-libgcc -shared -Wl,--kill-at
-LDLIBS += -lshlwapi -luuid -lstrmiids
+LDLIBS += -lshlwapi -luuid -lstrmiids -lole32
 
 %.o: %.c
 	@printf '\t%s %s\n' CC $<

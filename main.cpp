@@ -88,50 +88,28 @@ static const tjs_char* mediatype[] = {
 	TJS_W(".wtv"),
 };
 
-#ifdef TJS_64BIT_OS
-#define PLUGIN_PATH "plugin64\\LAVFilters\\"
-#else
-#define PLUGIN_PATH "plugin\\LAVFilters\\"
-#endif
+bool shouldCleanup = false;
 
-#define DIRECTSHOW_FILTER_FACTORY_FUNCTION( name )  \
-	HMODULE p##name##Module; \
-	IClassFactory* p##name##Factory; \
+#define DIRECTSHOW_FILTER_FACTORY_FUNCTION( name ) \
 	static void* tTVPCreate##name##Filter( void* formatdata ) { \
 		IBaseFilter* pFilter; \
-		if (!SUCCEEDED(p##name##Factory->CreateInstance(NULL, IID_IBaseFilter, (void**)&pFilter))) \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not create instance in " #name ".ax")); \
+		if (FAILED(CoCreateInstance(CLSID_##name, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pFilter))) { \
+			if (shouldCleanup) \
+				CoUninitialize(); \
+			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not create filter instance for " #name )); \
+		} \
 		return pFilter; \
 	}
 
-#define DIRECTSHOW_FILTER_INITIALIZATION( name ) \
+#define DIRECTSHOW_FILTER_CHECK( name ) \
 	{ \
-		TCHAR exePath [MAX_PATH]; \
-		::GetModuleFileName(nullptr, exePath, sizeof( exePath ) / sizeof( exePath[0] )); \
-		::PathRemoveFileSpec(exePath); \
-		::PathAppend(exePath, TEXT(PLUGIN_PATH)); \
-		TCHAR oldDllDir [MAX_PATH]; \
-		::GetDllDirectory( sizeof( oldDllDir ) / sizeof( oldDllDir[0] ), oldDllDir ); \
-		::SetDllDirectory( exePath ); \
-		p##name##Module = ::LoadLibrary(TEXT(#name ".ax")); \
-		::SetDllDirectory( oldDllDir ); \
-		if (!p##name##Module) \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: failed to load " #name ".ax")); \
-		HRESULT (WINAPI *cbFactory)(REFCLSID, REFIID, void**) = (HRESULT (WINAPI *)(REFCLSID, REFIID, void**))::GetProcAddress(p##name##Module, "DllGetClassObject"); \
-		if (!cbFactory) \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not find DllGetClassObject symbol in " #name ".ax")); \
-		if (!SUCCEEDED(cbFactory(CLSID_##name, IID_IClassFactory, (void**)&p##name##Factory))) \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not retrieve factory in " #name ".ax")); \
-	}
-
-#define DIRECTSHOW_FILTER_CLEANUP( name ) \
-	{ \
-		if (p##name##Factory) \
-			p##name##Factory->Release(); \
-		p##name##Factory = nullptr; \
-		if (p##name##Module) \
-			::FreeLibrary(p##name##Module); \
-		p##name##Module = nullptr; \
+		IBaseFilter* pFilter = (IBaseFilter*)tTVPCreate##name##Filter(nullptr); \
+		if (!pFilter) { \
+			if (shouldCleanup) \
+				CoUninitialize(); \
+			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not retrieve filter " #name )); \
+		} \
+		pFilter->Release(); \
 	}
 
 DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVSplitter);
@@ -139,9 +117,18 @@ DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVVideo);
 DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVAudio);
 
 static void regcb() {
-	DIRECTSHOW_FILTER_INITIALIZATION(LAVSplitter);
-	DIRECTSHOW_FILTER_INITIALIZATION(LAVVideo);
-	DIRECTSHOW_FILTER_INITIALIZATION(LAVAudio);
+	if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
+		TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not initialize the COM library"));
+	shouldCleanup = true;
+
+	DIRECTSHOW_FILTER_CHECK(LAVSplitter);
+	DIRECTSHOW_FILTER_CHECK(LAVVideo);
+	DIRECTSHOW_FILTER_CHECK(LAVAudio);
+
+	if (shouldCleanup)
+		CoUninitialize();
+	shouldCleanup = false;
+
 	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
 		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
 			TVPRegisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
@@ -153,9 +140,6 @@ static void unregcb() {
 	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
 		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
 			TVPUnregisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
-	DIRECTSHOW_FILTER_CLEANUP(LAVSplitter);
-	DIRECTSHOW_FILTER_CLEANUP(LAVVideo);
-	DIRECTSHOW_FILTER_CLEANUP(LAVAudio);
 }
 
 NCB_POST_UNREGIST_CALLBACK(unregcb);
