@@ -1,6 +1,6 @@
 #############################################################################
 ##                                                                         ##
-##                    Copyright (C) 2019-2019 Julian Uy                    ##
+##                    Copyright (C) 2019-2021 Julian Uy                    ##
 ##                  https://sites.google.com/site/awertyb                  ##
 ##                                                                         ##
 ##   This program is free software; you can redistribute it and/or modify  ##
@@ -19,49 +19,14 @@
 ##                                                                         ##
 #############################################################################
 
-CC = i686-w64-mingw32-gcc
-CXX = i686-w64-mingw32-g++
-WINDRES := i686-w64-mingw32-windres
-GIT_TAG := $(shell git describe --abbrev=0 --tags)
-ALLSRCFLAGS += -DGIT_TAG=\"$(GIT_TAG)\" -DWINVER=0x0501 -D_WIN32_WINNT=0x0501
-CFLAGS += -O2 -flto
-CFLAGS += $(ALLSRCFLAGS) -Wall -Wno-unused-value -Wno-format -I. -I.. -I../ncbind -DNDEBUG -DWIN32 -D_WIN32 -D_WINDOWS 
-CFLAGS += -D_USRDLL -DMINGW_HAS_SECURE_API -DUNICODE -D_UNICODE -DNO_STRICT -fpermissive
-WINDRESFLAGS += $(ALLSRCFLAGS) --codepage=65001
-LDFLAGS += -static -static-libstdc++ -static-libgcc -shared -Wl,--kill-at
+SOURCES += main.cpp
+
 LDLIBS += -lshlwapi -luuid -lstrmiids -lole32
 
-%.o: %.c
-	@printf '\t%s %s\n' CC $<
-	$(CC) -c $(CFLAGS) -o $@ $<
+PROJECT_BASENAME = krdslavf
 
-%.o: %.cpp
-	@printf '\t%s %s\n' CXX $<
-	$(CXX) -c $(CFLAGS) -o $@ $<
+RC_FILEDESCRIPTION = LAVFilters connector for TVP(KIRIKIRI) (2/Z)
+RC_LEGALCOPYRIGHT = Copyright (C) 2019-2019 Julian Uy; This product is licensed under the GNU General Public License version 2 or (at your option) any later version.
+RC_PRODUCTNAME = LAVFilters connector for TVP(KIRIKIRI) (2/Z)
 
-%.o: %.rc
-	@printf '\t%s %s\n' WINDRES $<
-	$(WINDRES) $(WINDRESFLAGS) $< $@
-
-SOURCES := ../tp_stub.cpp ../ncbind/ncbind.cpp main.cpp krdslavf.rc
-OBJECTS := $(SOURCES:.c=.o)
-OBJECTS := $(OBJECTS:.cpp=.o)
-OBJECTS := $(OBJECTS:.rc=.o)
-
-BINARY ?= krdslavf.dll
-ARCHIVE ?= krdslavf.$(GIT_TAG).7z
-
-all: $(BINARY)
-
-archive: $(ARCHIVE)
-
-clean:
-	rm -f $(OBJECTS) $(BINARY) $(ARCHIVE)
-
-$(ARCHIVE): $(BINARY) 
-	rm -f $(ARCHIVE)
-	7z a $@ $^
-
-$(BINARY): $(OBJECTS) 
-	@printf '\t%s %s\n' LNK $@
-	$(CXX) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+include external/ncbind/Rules.lib.make
