@@ -116,9 +116,12 @@ DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVSplitter);
 DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVVideo);
 DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVAudio);
 
-static void regcb() {
+static void regcb()
+{
 	if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
+	{
 		TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not initialize the COM library"));
+	}
 	shouldCleanup = true;
 
 	DIRECTSHOW_FILTER_CHECK(LAVSplitter);
@@ -126,20 +129,31 @@ static void regcb() {
 	DIRECTSHOW_FILTER_CHECK(LAVAudio);
 
 	if (shouldCleanup)
+	{
 		CoUninitialize();
+	}
 	shouldCleanup = false;
 
 	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
+	{
 		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+		{
 			TVPRegisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+		}
+	}
 }
 
 NCB_PRE_REGIST_CALLBACK(regcb);
 
-static void unregcb() {
+static void unregcb()
+{
 	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
+	{
 		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+		{
 			TVPUnregisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+		}
+	}
 }
 
 NCB_POST_UNREGIST_CALLBACK(unregcb);
