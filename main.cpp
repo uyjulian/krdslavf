@@ -92,11 +92,13 @@ bool shouldCleanup = false;
 bool has_failed = false;
 
 #define DIRECTSHOW_FILTER_FACTORY_FUNCTION( name ) \
-	static void* tTVPCreate##name##Filter( void* formatdata ) { \
+	static void* tTVPCreate##name##Filter(void* formatdata) \
+	{ \
 		IBaseFilter* pFilter; \
-		if (FAILED(CoCreateInstance(CLSID_##name, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pFilter))) { \
-			if (shouldCleanup) \
-				CoUninitialize(); \
+		\
+		pFilter = nullptr; \
+		if (FAILED(CoCreateInstance(CLSID_##name, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pFilter))) \
+		{ \
 			TVPAddLog(TJS_W("krdslavfilters: could not create filter instance for " #name )); \
 		} \
 		return pFilter; \
@@ -104,14 +106,18 @@ bool has_failed = false;
 
 #define DIRECTSHOW_FILTER_CHECK( name ) \
 	{ \
-		IBaseFilter* pFilter = (IBaseFilter*)tTVPCreate##name##Filter(nullptr); \
-		if (!pFilter) { \
-			if (shouldCleanup) \
-				CoUninitialize(); \
+		IBaseFilter* pFilter; \
+		\
+		pFilter = (IBaseFilter*)tTVPCreate##name##Filter(nullptr); \
+		if (!pFilter) \
+		{ \
 			TVPAddLog(TJS_W("krdslavfilters: could not retrieve filter " #name )); \
 			has_failed = true; \
 		} \
-		pFilter->Release(); \
+		else \
+		{ \
+			pFilter->Release(); \
+		} \
 	}
 
 DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVSplitter);
@@ -120,10 +126,12 @@ DIRECTSHOW_FILTER_FACTORY_FUNCTION(LAVAudio);
 
 static void regcb()
 {
+	has_failed = false;
 	if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
 	{
 		TVPAddLog(TJS_W("krdslavfilters: could not initialize the COM library"));
 		has_failed = true;
+		return;
 	}
 	shouldCleanup = true;
 
@@ -134,8 +142,8 @@ static void regcb()
 	if (shouldCleanup)
 	{
 		CoUninitialize();
+		shouldCleanup = false;
 	}
-	shouldCleanup = false;
 
 	if (!has_failed)
 	{
