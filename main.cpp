@@ -89,6 +89,7 @@ static const tjs_char* mediatype[] = {
 };
 
 bool shouldCleanup = false;
+bool has_failed = false;
 
 #define DIRECTSHOW_FILTER_FACTORY_FUNCTION( name ) \
 	static void* tTVPCreate##name##Filter( void* formatdata ) { \
@@ -96,7 +97,7 @@ bool shouldCleanup = false;
 		if (FAILED(CoCreateInstance(CLSID_##name, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pFilter))) { \
 			if (shouldCleanup) \
 				CoUninitialize(); \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not create filter instance for " #name )); \
+			TVPAddLog(TJS_W("krdslavfilters: could not create filter instance for " #name )); \
 		} \
 		return pFilter; \
 	}
@@ -107,7 +108,8 @@ bool shouldCleanup = false;
 		if (!pFilter) { \
 			if (shouldCleanup) \
 				CoUninitialize(); \
-			TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not retrieve filter " #name )); \
+			TVPAddLog(TJS_W("krdslavfilters: could not retrieve filter " #name )); \
+			has_failed = true; \
 		} \
 		pFilter->Release(); \
 	}
@@ -120,7 +122,8 @@ static void regcb()
 {
 	if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
 	{
-		TVPThrowExceptionMessage(TJS_W("krdslavfilters: could not initialize the COM library"));
+		TVPAddLog(TJS_W("krdslavfilters: could not initialize the COM library"));
+		has_failed = true;
 	}
 	shouldCleanup = true;
 
@@ -134,11 +137,14 @@ static void regcb()
 	}
 	shouldCleanup = false;
 
-	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
+	if (!has_failed)
 	{
-		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+		for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
 		{
-			TVPRegisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+			for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+			{
+				TVPRegisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+			}
 		}
 	}
 }
@@ -147,11 +153,14 @@ NCB_PRE_REGIST_CALLBACK(regcb);
 
 static void unregcb()
 {
-	for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
+	if (!has_failed)
 	{
-		for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+		for (size_t i = 0; i < sizeof(mediauuid)/sizeof(mediauuid[0]); i += 1)
 		{
-			TVPUnregisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+			for (size_t j = 0; j < sizeof(mediatype)/sizeof(mediatype[0]); j += 1)
+			{
+				TVPUnregisterDSVideoCodec( mediatype[j], (void*)&mediauuid[i], tTVPCreateLAVSplitterFilter, tTVPCreateLAVVideoFilter, tTVPCreateLAVAudioFilter, NULL );
+			}
 		}
 	}
 }
