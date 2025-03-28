@@ -25,8 +25,8 @@ LDLIBS += -lshlwapi -luuid -lstrmiids -lole32
 
 PROJECT_BASENAME = krdslavf
 
-RC_FILEDESCRIPTION = LAVFilters connector for TVP(KIRIKIRI) (2/Z)
-RC_LEGALCOPYRIGHT = Copyright (C) 2019-2019 Julian Uy; This product is licensed under the GNU General Public License version 2 or (at your option) any later version.
-RC_PRODUCTNAME = LAVFilters connector for TVP(KIRIKIRI) (2/Z)
+RC_DESC ?= LAVFilters connector for TVP(KIRIKIRI) (2/Z)
+RC_PRODUCTNAME ?= LAVFilters connector for TVP(KIRIKIRI) (2/Z)
+RC_LEGALCOPYRIGHT ?= Copyright (C) 2019-2019 Julian Uy; This product is licensed under the GNU General Public License version 2 or (at your option) any later version.
 
 include external/ncbind/Rules.lib.make
